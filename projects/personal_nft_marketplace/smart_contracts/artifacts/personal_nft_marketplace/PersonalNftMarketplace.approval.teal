@@ -1,0 +1,260 @@
+#pragma version 10
+
+smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.approval_program:
+    callsub __puya_arc4_router__
+    return
+
+
+// smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.__puya_arc4_router__() -> uint64:
+__puya_arc4_router__:
+    proto 0 1
+    txn NumAppArgs
+    bz __puya_arc4_router___bare_routing@9
+    method "creator()address"
+    method "opt_in(asset)void"
+    method "list_nft(axfer,uint64)void"
+    method "get_price(asset)uint64"
+    method "purchase_nft(asset,pay)void"
+    txna ApplicationArgs 0
+    match __puya_arc4_router___creator_route@2 __puya_arc4_router___opt_in_route@3 __puya_arc4_router___list_nft_route@4 __puya_arc4_router___get_price_route@5 __puya_arc4_router___purchase_nft_route@6
+    int 0
+    retsub
+
+__puya_arc4_router___creator_route@2:
+    txn OnCompletion
+    !
+    assert // OnCompletion is NoOp
+    txn ApplicationID
+    assert // is not creating
+    callsub creator
+    byte 0x151f7c75
+    swap
+    concat
+    log
+    int 1
+    retsub
+
+__puya_arc4_router___opt_in_route@3:
+    txn OnCompletion
+    !
+    assert // OnCompletion is NoOp
+    txn ApplicationID
+    assert // is not creating
+    txna ApplicationArgs 1
+    btoi
+    txnas Assets
+    callsub opt_in
+    int 1
+    retsub
+
+__puya_arc4_router___list_nft_route@4:
+    txn OnCompletion
+    !
+    assert // OnCompletion is NoOp
+    txn ApplicationID
+    assert // is not creating
+    txn GroupIndex
+    int 1
+    -
+    dup
+    gtxns TypeEnum
+    int axfer
+    ==
+    assert // transaction type is axfer
+    txna ApplicationArgs 1
+    callsub list_nft
+    int 1
+    retsub
+
+__puya_arc4_router___get_price_route@5:
+    txn OnCompletion
+    !
+    assert // OnCompletion is NoOp
+    txn ApplicationID
+    assert // is not creating
+    txna ApplicationArgs 1
+    btoi
+    txnas Assets
+    callsub get_price
+    itob
+    byte 0x151f7c75
+    swap
+    concat
+    log
+    int 1
+    retsub
+
+__puya_arc4_router___purchase_nft_route@6:
+    txn OnCompletion
+    !
+    assert // OnCompletion is NoOp
+    txn ApplicationID
+    assert // is not creating
+    txna ApplicationArgs 1
+    btoi
+    txnas Assets
+    txn GroupIndex
+    int 1
+    -
+    dup
+    gtxns TypeEnum
+    int pay
+    ==
+    assert // transaction type is pay
+    callsub purchase_nft
+    int 1
+    retsub
+
+__puya_arc4_router___bare_routing@9:
+    txn OnCompletion
+    bnz __puya_arc4_router___after_if_else@13
+    txn ApplicationID
+    !
+    assert // is creating
+    int 1
+    retsub
+
+__puya_arc4_router___after_if_else@13:
+    int 0
+    retsub
+
+
+// smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.creator() -> bytes:
+creator:
+    proto 0 1
+    global CreatorAddress
+    retsub
+
+
+// smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.opt_in(nft: uint64) -> void:
+opt_in:
+    proto 1 0
+    callsub creator_only
+    itxn_begin
+    global CurrentApplicationAddress
+    int 0
+    itxn_field AssetAmount
+    itxn_field AssetReceiver
+    frame_dig -1
+    itxn_field XferAsset
+    int axfer
+    itxn_field TypeEnum
+    int 0
+    itxn_field Fee
+    itxn_submit
+    retsub
+
+
+// smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.creator_only() -> void:
+creator_only:
+    proto 0 0
+    txn Sender
+    global CreatorAddress
+    ==
+    assert
+    retsub
+
+
+// smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.list_nft(axfer: uint64, price: bytes) -> void:
+list_nft:
+    proto 2 0
+    callsub creator_only
+    frame_dig -2
+    gtxns AssetReceiver
+    global CurrentApplicationAddress
+    ==
+    assert // Receiver must be the application address
+    frame_dig -2
+    gtxns AssetAmount
+    int 1
+    ==
+    assert // Asset amount must be 1
+    frame_dig -2
+    gtxns XferAsset
+    callsub box_key
+    frame_dig -1
+    box_put
+    retsub
+
+
+// smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.box_key(nft: uint64) -> bytes:
+box_key:
+    proto 1 1
+    frame_dig -1
+    itob
+    retsub
+
+
+// smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.get_price(nft: uint64) -> uint64:
+get_price:
+    proto 1 1
+    frame_dig -1
+    callsub box_key
+    box_get
+    assert // Price not found
+    btoi
+    retsub
+
+
+// smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.purchase_nft(nft: uint64, payment: uint64) -> void:
+purchase_nft:
+    proto 2 0
+    global CurrentApplicationAddress
+    frame_dig -2
+    asset_holding_get AssetBalance
+    assert // account opted into asset
+    assert // NFT not available
+    frame_dig -1
+    gtxns Receiver
+    global CreatorAddress
+    ==
+    assert // Payment receiver must be creator address
+    frame_dig -1
+    gtxns Amount
+    frame_dig -2
+    callsub get_price
+    >=
+    assert // Payment amount must be larger than price
+    frame_dig -1
+    gtxns Sender
+    dup
+    frame_dig -2
+    asset_holding_get AssetBalance
+    bury 1
+    assert // Sender must opt in to receive NFT
+    itxn_begin
+    int 1
+    itxn_field AssetAmount
+    dup
+    itxn_field AssetReceiver
+    frame_dig -2
+    itxn_field XferAsset
+    int axfer
+    itxn_field TypeEnum
+    int 0
+    itxn_field Fee
+    itxn_submit
+    frame_dig -2
+    itob
+    frame_dig -2
+    callsub get_price
+    itob
+    global LatestTimestamp
+    itob
+    swap
+    uncover 2
+    swap
+    concat
+    uncover 2
+    concat
+    swap
+    concat
+    method "PurchaseEvent(uint64,uint64,address,uint64)"
+    swap
+    concat
+    log
+    frame_dig -2
+    callsub box_key
+    box_del
+    pop
+    retsub

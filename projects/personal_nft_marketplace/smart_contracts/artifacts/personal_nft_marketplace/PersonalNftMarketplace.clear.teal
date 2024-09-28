@@ -1,0 +1,5 @@
+#pragma version 10
+
+smart_contracts.personal_nft_marketplace.contract.PersonalNftMarketplace.clear_state_program:
+    int 1
+    return
